@@ -1,0 +1,1156 @@
+diff -ruN xv6/defs.h xv6-public/defs.h
+--- xv6/defs.h	2020-10-15 21:29:50.133275464 +0530
++++ xv6-public/defs.h	2020-10-15 21:29:50.121273933 +0530
+@@ -8,7 +8,6 @@
+ struct spinlock;
+ struct sleeplock;
+ struct stat;
+-struct processInfo;
+ struct superblock;
+ 
+ // bio.c
+@@ -122,15 +121,6 @@
+ void            wakeup(void*);
+ void            yield(void);
+ 
+-// below function definitions are declared in defs.h so that these become available to kernel in proc.c file
+-int 		getNumProc(void);
+-int 		getMaxPid(void);
+-int 		getProcInfo(int , struct processInfo*);
+-int 		set_burst_time(int);
+-int 		get_burst_time();
+-int 		time_checker(void);
+-int 		ps(void);
+-
+ // swtch.S
+ void            swtch(struct context**, struct context*);
+ 
+@@ -198,4 +188,3 @@
+ 
+ // number of elements in fixed-size array
+ #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+-
+diff -ruN xv6/foo.c xv6-public/foo.c
+--- xv6/foo.c	2020-10-15 21:29:50.133275464 +0530
++++ xv6-public/foo.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,38 +0,0 @@
+-//to generate child processes to test our scheduling algorithm
+-
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-
+-int main(int argc, char * argv[])
+-{
+-	int pid, k, n, x, z;
+-	
+-	if(argc != 2){
+-		printf(2, "Usage: %s n\n", argv[0]);	
+-	}
+-	
+-	n = atoi(argv[1]);
+-	
+-	for(k = 0; k < n; k++){
+-		pid = fork(); // Creates new process, copying lots from its parent, and set stack as if returning from a system-call.
+-		
+-		if(pid < 0){
+-			printf(1, "%d failed in fork!\n", getpid());
+-			exit();
+-		}
+-		else if(pid == 0){
+-			// child
+-			printf(1, "Child %d created \n", getpid());
+-			for(z = 0; z < 10000.0; z += 0.01)
+-        		 x =  x + 3.14 * 89.64;   // useless calculations to consume CPU time
+-			exit();
+-		}	
+-	}
+-	for(k = 0; k < n; k++) {
+-		wait();
+-	}
+-	exit();
+-}
+-
+diff -ruN xv6/get_burst_time.c xv6-public/get_burst_time.c
+--- xv6/get_burst_time.c	2020-10-15 21:29:50.137275974 +0530
++++ xv6-public/get_burst_time.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,14 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-
+-int main(int argc, char* argv[])
+-{	
+-	// get_burst_time() system call is used from user.h which returns the burst time of currently running process.
+-	int res = get_burst_time(); 
+-
+-	if(res < 1) printf(1, "Couldn't set the Burst Time\n");
+-	else printf(1, "Burst time = %d\n", res);
+-	exit();
+-}
+diff -ruN xv6/getMaxPid.c xv6-public/getMaxPid.c
+--- xv6/getMaxPid.c	2020-10-15 21:29:50.137275974 +0530
++++ xv6-public/getMaxPid.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,11 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-
+-int main()
+-{
+-	// getMaxPid() system call is used from user.h to get the process having maximum Process Id.
+-	printf(1, "Max PID: %d\n", getMaxPid());
+-	exit();
+-}
+diff -ruN xv6/getNumProc.c xv6-public/getNumProc.c
+--- xv6/getNumProc.c	2020-10-15 21:29:50.137275974 +0530
++++ xv6-public/getNumProc.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,12 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-
+-int main()
+-{
+-	// user.h contains the definition of all system calls and is available to user space programs. 
+-	// getNumProc() system call is used from user.h to get the number of active processes in the system. 
+-	printf(1, "Number of Active Process: %d\n", getNumProc());
+-	exit();
+-}
+diff -ruN xv6/getProcInfo.c xv6-public/getProcInfo.c
+--- xv6/getProcInfo.c	2020-10-15 21:29:50.137275974 +0530
++++ xv6-public/getProcInfo.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,26 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-#include "processInfo.h"
+-
+-int main(int argc, char* argv[])
+-{	
+-	//argv[0] is program name and argv[1][0] contains the process id from command line.
+-	int pid = (int)(argv[1][0]-'0');
+-
+-	// declaring the user memory space for a process
+-	struct processInfo *p = malloc(sizeof(struct processInfo));
+-
+-	// getProcInfo() system call is used from user.h which returns 0 if required process is found in the system and -1 otherwise. 
+-	int value = getProcInfo(pid, p);
+-
+-	if(value == -1){
+-		printf(1, "Process Not Found\n");
+-	}
+-	else {
+-		// printing the information for the required process.
+-		printf(1, "Process ID: %d\nProcess Size: %d\nNumber of Context Switches: %d\n", p->ppid, p->psize, p->numberContextSwitches);	
+-	}
+-	exit();
+-}
+diff -ruN xv6/init.c xv6-public/init.c
+--- xv6/init.c	2020-10-15 21:29:50.137275974 +0530
++++ xv6-public/init.c	2020-10-15 21:29:50.125274443 +0530
+@@ -18,22 +18,9 @@
+   }
+   dup(0);  // stdout
+   dup(0);  // stderr
+-  
+-  #ifdef DEFAULT
+-    printf(1, "Scheduler policy: DEFAULT\n");
+-  #else
+-  #ifdef SJF
+-    printf(1, "Scheduler policy: SJF\n");
+-  #else
+-  #ifdef HBSJF
+-    printf(1, "Scheduler policy: Hybrid\n");
+-  #endif
+-  #endif
+-  #endif
+-  
++
+   for(;;){
+     printf(1, "init: starting sh\n");
+-
+     pid = fork();
+     if(pid < 0){
+       printf(1, "init: fork failed\n");
+diff -ruN xv6/Makefile xv6-public/Makefile
+--- xv6/Makefile	2020-10-15 21:29:50.133275464 +0530
++++ xv6-public/Makefile	2020-10-15 21:29:50.121273933 +0530
+@@ -71,10 +71,6 @@
+ 	echo "***" 1>&2; exit 1)
+ endif
+ 
+-
+-SCHEDFLAG := DEFAULT
+-
+-
+ CC = $(TOOLPREFIX)gcc
+ AS = $(TOOLPREFIX)gas
+ LD = $(TOOLPREFIX)ld
+@@ -82,7 +78,6 @@
+ OBJDUMP = $(TOOLPREFIX)objdump
+ CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
+ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+-CFLAGS += -D $(SCHEDFLAG)
+ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
+ # FreeBSD ld wants ``elf_i386_fbsd''
+ LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
+@@ -185,15 +180,6 @@
+ 	_stressfs\
+ 	_usertests\
+ 	_wc\
+-	_getNumProc\
+-	_getMaxPid\
+-	_getProcInfo\
+-	_get_burst_time\
+-	_set_burst_time\
+-	_foo\
+-	_Test_scheduler_one\
+-	_ps\
+-	_Test_scheduler_two\
+ 	_zombie\
+ 
+ fs.img: mkfs README $(UPROGS)
+@@ -231,14 +217,10 @@
+ 	then echo "-gdb tcp::$(GDBPORT)"; \
+ 	else echo "-s -p $(GDBPORT)"; fi)
+ ifndef CPUS
+-CPUS := 1
++CPUS := 2
+ endif
+ QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+ 
+-
+-flags:
+-	@echo $(SCHEDFLAG)
+-	
+ qemu: fs.img xv6.img
+ 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
+ 
+@@ -267,8 +249,7 @@
+ 
+ EXTRA=\
+ 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+-	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c getNumProc.c getMaxPid.c getProcInfo.c set_burst_time.c get_burst_time.c foo.c Test_scheduler_one.c ps.c Test_scheduler_two.c\
+-	zombie.c\
++	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
+ 	printf.c umalloc.c\
+ 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+ 	.gdbinit.tmpl gdbutil\
+diff -ruN xv6/param.h xv6-public/param.h
+--- xv6/param.h	2020-10-15 21:29:50.137275974 +0530
++++ xv6-public/param.h	2020-10-15 21:29:50.125274443 +0530
+@@ -1,9 +1,6 @@
+ #define NPROC        64  // maximum number of processes
+ #define KSTACKSIZE 4096  // size of per-process kernel stack
+-
+-// setting the maxiumum number of CPUs to 1 
+-#define NCPU          1  // maximum number of CPUs
+-
++#define NCPU          8  // maximum number of CPUs
+ #define NOFILE       16  // open files per process
+ #define NFILE       100  // open files per system
+ #define NINODE       50  // maximum number of active i-nodes
+diff -ruN xv6/proc.c xv6-public/proc.c
+--- xv6/proc.c	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/proc.c	2020-10-15 21:29:50.125274443 +0530
+@@ -6,7 +6,6 @@
+ #include "x86.h"
+ #include "proc.h"
+ #include "spinlock.h"
+-#include "processInfo.h"
+ 
+ struct {
+   struct spinlock lock;
+@@ -16,7 +15,6 @@
+ static struct proc *initproc;
+ 
+ int nextpid = 1;
+-int TimeQuanta = 2000;
+ extern void forkret(void);
+ extern void trapret(void);
+ 
+@@ -91,11 +89,6 @@
+   p->state = EMBRYO;
+   p->pid = nextpid++;
+ 
+-  p->burstTime = 0;     // default value for burst time
+-  p->numOfSwitches = 0; // initial number of context switches = 0
+-  p->alreadyRun = 0;    // since it was unused, it didn't ran previously 
+-  p->runningTime = 0; 	// time for which it has runned = 0
+-
+   release(&ptable.lock);
+ 
+   // Allocate kernel stack.
+@@ -333,91 +326,23 @@
+   struct cpu *c = mycpu();
+   c->proc = 0;
+   
+-  for(;;)
+-  {  
++  for(;;){
+     // Enable interrupts on this processor.
+     sti();
+-  
++
+     // Loop over process table looking for process to run.
+     acquire(&ptable.lock);
+-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+-    {  
++    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+       if(p->state != RUNNABLE)
+         continue;
+-      
+-      // if doing shortest job first scheduling
+-      #ifdef SJF 
+-      
+-      struct proc *lowestBT = p; //stores the lowest burst time
+-      struct proc *p1 = 0; //act as loop variable
+-      for(p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++){
+-    		if(p1->state == RUNNABLE && p1->burstTime < lowestBT->burstTime)
+-    			lowestBT = p1;
+-    	}
+-      p = lowestBT;
+-      
+-      // if doing Hybrid scheduling
+-      #else 
+-      #ifdef HBSJF
+-      /*
+-      	Algorithm: In each round find the lowest burst time process which is not being run in the current round. Run this process. 
+-    		If all processes are run one time in a round then we start with next round. Again choosing the minimum burst time process.	  		 
+-      		
+-      	Extra variables which we need to maintain are: 
+-      	One variable "alreadyRun" to indicate whether the process has been run in current round or not.
+-		    alreadyRun = 0 means process has not been executed in this round.
+-			      			
+-      	pseudo code: 
+-      	1) Find the minimum burst time process by running a for loop.
+-      	2) Find a process which has least burst time && it has not been run in this round
+-      	3) If no such process is found in round 2), start next round with process found in 1)	
+-      */
+-      
+-      struct proc *lowestBT = p;    // stores the lowest burst time
+-      struct proc *p1 = 0;          // act as loop variable
+-      int flag = 0;
+-      struct proc* remLowest = 0;
+-      	
+-      for(p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++){
+-    		if(p1->state == RUNNABLE && p1->burstTime < lowestBT->burstTime)
+-    			lowestBT = p1;
+-    	}
+-    	
+-    	//Finding a job which has not been run yet in this round andd having minimum burst time
+-    	for(p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++){
+-    		if(p1->state == RUNNABLE && p1->alreadyRun == 0){
+-    			if(flag == 0){
+-    				flag = 1;
+-    				remLowest = p1;
+-    			}
+-    			else if(p1->burstTime < remLowest->burstTime){
+-    				remLowest = p1;
+-    			}	
+-    		}
+-    	}
+-    	
+-    	if(flag == 0){ //start with next round
+-    		p = lowestBT;
+-    		
+-        //Now in new round all process will have variable alreadyRun = 0;
+-    		for(p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++)
+-    			p1->alreadyRun = 0;	
+-    	}
+-    	else {
+-    		p = remLowest;
+-    	}
+-    	
+-      #endif
+-      #endif	
+-      
++
+       // Switch to chosen process.  It is the process's job
+       // to release ptable.lock and then reacquire it
+       // before jumping back to us.
+       c->proc = p;
+-	    p->numOfSwitches = p->numOfSwitches + 1;
+       switchuvm(p);
+       p->state = RUNNING;
+-	    p->alreadyRun = 1;	
++
+       swtch(&(c->scheduler), p->context);
+       switchkvm();
+ 
+@@ -426,6 +351,7 @@
+       c->proc = 0;
+     }
+     release(&ptable.lock);
++
+   }
+ }
+ 
+@@ -451,7 +377,6 @@
+   if(readeflags()&FL_IF)
+     panic("sched interruptible");
+   intena = mycpu()->intena;
+-  
+   swtch(&p->context, mycpu()->scheduler);
+   mycpu()->intena = intena;
+ }
+@@ -607,178 +532,3 @@
+     cprintf("\n");
+   }
+ }
+-
+-
+-// to set the burst time
+-int 
+-set_burst_time(int n)
+-{
+-  // myproc() is used to get the currently running process.
+-	struct proc *currp = myproc();
+-
+-  // if burstTime is < 1 returns -1 as burstTime should be >= 1.
+-	if(n<1) return -1;
+-
+-	acquire(&ptable.lock);
+-
+-  // setting the burstTime of currently running process equal to n.
+-	currp->burstTime = n;
+-
+-	release(&ptable.lock);
+-	
+-	if(n < TimeQuanta) TimeQuanta = n; // Setting TimeQuanta equals to minimum burst time set.
+-	
+-	yield(); // this is required to put the current process in ready queue 
+-	
+-  // returning 0 as burstTime is setted successfully to n.
+-	return 0; 
+-}
+-
+-// to get burst time
+-int 
+-get_burst_time()
+-{
+-  // myproc() is used to get the currently running process.
+-	struct proc *currp = myproc();
+-	
+-	acquire(&ptable.lock);
+-	int n = currp->burstTime;
+-	release(&ptable.lock);
+-	
+-  return n;  // returning the burstTime of currently running process.
+-}
+-
+-// Get the count of all active processes
+-int 
+-getNumProc()
+-{
+-	struct proc *p;
+-
+-  // initializing the count of active processes as 0
+-	int count = 0;
+-	acquire(&ptable.lock);
+-
+-	 // going through all the processes
+-	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+-	{
+-		if(p->state != UNUSED){
+-      // printing the information of the active process
+-      cprintf("%s %d\n", p->name, p->pid);
+-			// incrementing the number of active processes by 1
+-      count++;
+-		}
+-	}
+-	release(&ptable.lock);
+-
+-  // returning the count of active processes
+-	return count;
+-}
+-
+-// Get the maximum PID among all active processes
+-int 
+-getMaxPid()
+-{
+-	struct proc *p;
+-	acquire(&ptable.lock);
+-
+-  // declaring maximum Process Id as -1
+-	int maxPid = -1;
+-	
+-  // going through all the processes
+-	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+-	{	
+-		if(p->state != UNUSED)
+-		{ 
+-      // finding the process with maximum process Id
+-			if(maxPid == -1) 
+-				maxPid = p->pid;
+-			else if(maxPid < p-> pid)
+-				maxPid = p->pid;			
+-		}
+-	}
+-	release(&ptable.lock);
+-
+-	// returning maximum process Id
+-	return maxPid;
+-}
+-
+-// Get the process info
+-int 
+-getProcInfo(int pid, struct processInfo* ptr)
+-{
+-  struct proc *p;
+-
+-  acquire(&ptable.lock);
+-  int found = -1;
+-
+-  // finding the process with given pid
+-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+-  { 
+-    if(p->state != UNUSED && p->pid == pid)
+-    {   
+-      // signifies that process is found
+-      found = 0;   
+-
+-      // setting the parent id of process
+-      if(pid == 1) ptr->ppid = 0;
+-      else ptr->ppid = p->parent->pid;
+-    
+-      // setting the process size
+-      ptr->psize = p->sz;
+-
+-      // setting the number of context switches of the process
+-      ptr->numberContextSwitches = p->numOfSwitches;
+-      break;
+-    }
+-  }  
+-  release(&ptable.lock);
+-  
+-  // if process is found it returns 0 else it returns -1
+-  return found;
+-}
+-
+-int 
+-time_checker(void)
+-{
+-  struct proc *p = myproc();
+-
+-  acquire(&ptable.lock);
+-  p->runningTime += 1;
+-
+-  int n = p->runningTime;
+-  release(&ptable.lock);
+-
+-  if(n % TimeQuanta == 0){
+-    return 1; //one more Time Quanta is complete
+-  }
+-  return 0;
+-}
+-
+-
+-// To print process status
+-int 
+-ps(void)
+-{
+-	struct proc *p;
+-	acquire(&ptable.lock);
+-	cprintf(" %s		%s 		%s 		  %s		   %s\n", "Name", "PID", "State", "No.OfSwitches", "Burst Time");
+-	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+-	{
+-		if(p->state != UNUSED)
+-		{	
+-			if(p->state == EMBRYO) 
+-				cprintf(" %s		%d		%s	 		%d			 %d\n", p->name, p->pid, "EMBRYO", p->numOfSwitches, p->burstTime);
+-			else if(p->state == SLEEPING) 
+-				cprintf(" %s		%d		%s	 		%d			 %d\n", p->name, p->pid, "SLEEPING", p->numOfSwitches, p->burstTime);
+-			else if(p->state == RUNNING) 
+-				cprintf(" %s		%d		%s	 		%d			 %d\n", p->name, p->pid,  "RUNNING", p->numOfSwitches, p->burstTime);
+-			else if(p->state == RUNNABLE) 
+-				cprintf(" %s		%d		%s	 		%d			 %d\n", p->name, p->pid, "RUNNABLE", p->numOfSwitches, p->burstTime);
+-			else 
+-				cprintf(" %s		%d		%s	 		%d			 %d\n", p->name, p->pid, "ZOMBIE", p->numOfSwitches, p->burstTime);	
+-		}
+-	}
+-	release(&ptable.lock);
+-	return 1;
+-}
+-
+diff -ruN xv6/processInfo.h xv6-public/processInfo.h
+--- xv6/processInfo.h	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/processInfo.h	1970-01-01 05:30:00.000000000 +0530
+@@ -1,7 +0,0 @@
+-struct processInfo
+-{
+-    int ppid;
+-    int psize;
+-    int numberContextSwitches;
+-};
+-
+diff -ruN xv6/proc.h xv6-public/proc.h
+--- xv6/proc.h	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/proc.h	2020-10-15 21:29:50.125274443 +0530
+@@ -49,12 +49,6 @@
+   struct file *ofile[NOFILE];  // Open files
+   struct inode *cwd;           // Current directory
+   char name[16];               // Process name (debugging)
+-
+-  int numOfSwitches; 		       // to count number of switches
+-  int burstTime;			         // burst time for Process in seconds		
+-  int alreadyRun;              // to check if the process has runned already for some time or not
+-  int runningTime;             // to store for how much time the process has ran already
+-  
+ };
+ 
+ // Process memory is laid out contiguously, low addresses first:
+diff -ruN xv6/ps.c xv6-public/ps.c
+--- xv6/ps.c	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/ps.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,12 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-#include "processInfo.h"
+-
+-int main(int argc, char* argv[])
+-{	
+-	ps();	
+-	exit();
+-
+-}
+diff -ruN xv6/set_burst_time.c xv6-public/set_burst_time.c
+--- xv6/set_burst_time.c	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/set_burst_time.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,17 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "fcntl.h"
+-
+-int main(int argc, char* argv[])
+-{	
+-	// argv[0] is program name and argv[1] contains the burst time which has to be set for currently running process. 
+-	int n = atoi(argv[1]);
+- 
+-	// set_burst_time() system call is used from user.h which returns 0 if burst time setted successfully and -1 otherwise.
+-	int res = set_burst_time(n);
+-
+-	if(res == -1) printf(1, "Can't set the Burst Time\n");
+-	else printf(1, "Burst Time is set\n");
+-	exit();
+-}
+diff -ruN xv6/syscall.c xv6-public/syscall.c
+--- xv6/syscall.c	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/syscall.c	2020-10-15 21:29:50.129274954 +0530
+@@ -104,15 +104,6 @@
+ extern int sys_write(void);
+ extern int sys_uptime(void);
+ 
+-// Below Function prototypes are added to be called by system call numbers.
+-extern int sys_getNumProc(void);
+-extern int sys_getMaxPid(void);
+-extern int sys_getProcInfo(void);
+-extern int sys_set_burst_time(void);
+-extern int sys_get_burst_time(void);
+-extern int sys_yield(void);
+-extern int sys_ps(void);
+-
+ static int (*syscalls[])(void) = {
+ [SYS_fork]    sys_fork,
+ [SYS_exit]    sys_exit,
+@@ -135,16 +126,6 @@
+ [SYS_link]    sys_link,
+ [SYS_mkdir]   sys_mkdir,
+ [SYS_close]   sys_close,
+-
+-// Below Pointers are added in order to add our custom system call.
+-[SYS_getNumProc]   sys_getNumProc,
+-[SYS_getMaxPid]   sys_getMaxPid,
+-[SYS_getProcInfo]   sys_getProcInfo,
+-[SYS_set_burst_time]   sys_set_burst_time,
+-[SYS_get_burst_time]   sys_get_burst_time,
+-[SYS_yield]    sys_yield,
+-[SYS_ps]	sys_ps, 	  
+-
+ };
+ 
+ void
+diff -ruN xv6/syscall.h xv6-public/syscall.h
+--- xv6/syscall.h	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/syscall.h	2020-10-15 21:29:50.129274954 +0530
+@@ -20,12 +20,3 @@
+ #define SYS_link   19
+ #define SYS_mkdir  20
+ #define SYS_close  21
+-
+-// New system calls are added below and assigned appropriate indexes to be used in syscall.c file.
+-#define SYS_getNumProc  22
+-#define SYS_getMaxPid  23
+-#define SYS_getProcInfo 24
+-#define SYS_set_burst_time 25
+-#define SYS_get_burst_time 26
+-#define SYS_yield 27
+-#define SYS_ps 28 // to print process status and other details
+diff -ruN xv6/sysproc.c xv6-public/sysproc.c
+--- xv6/sysproc.c	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/sysproc.c	2020-10-15 21:29:50.129274954 +0530
+@@ -6,7 +6,6 @@
+ #include "memlayout.h"
+ #include "mmu.h"
+ #include "proc.h"
+-#include "processInfo.h"
+ 
+ int
+ sys_fork(void)
+@@ -90,73 +89,3 @@
+   release(&tickslock);
+   return xticks;
+ }
+-
+-
+-
+-// Return Number of active processes
+-int
+-sys_getNumProc(void)
+-{
+-	return getNumProc();
+-}
+-
+-// Return Maximum PID among all active processes
+-int 
+-sys_getMaxPid(void)
+-{
+-	return getMaxPid();	
+-}	
+-
+-// Return Information about process with given PID
+-int 
+-sys_getProcInfo(void)
+-{
+-	int pid;
+-	struct processInfo *p;
+-  
+-  // fetching process id into variable pid from user stack to kernel space.
+-  // 0 specifies that first command line argument value is taken for fetching value into pid  
+-	argptr(0, (void *)&pid, sizeof(pid));
+-
+-  // fetching struct processInfo into variable p from user stack to kernel space.
+-  // 1 specifies that second command line argument value is taken for fetching value into p
+-  argptr(1, (void *)&p, sizeof(p));
+-	
+-  return getProcInfo(pid, p);
+-}
+-
+-// To set process burst time
+-int 
+-sys_set_burst_time(void)
+-{
+-	int burst_time;
+-
+-  // Fetch the burst_time from user space to kernel space and 
+-  // if pointer doesn't lies within the process address space then -1 is returned. 
+-	if(argint(0, &burst_time) <0)
+-		return -1;
+-
+-	return set_burst_time(burst_time);
+-}
+-
+-// To get recently set burst time
+-int sys_get_burst_time(void)
+-{
+-  // function is called from proc.c from which the kernel code returns the burst time of currently running process
+-	return get_burst_time();
+-}
+-
+-// yield() puts a process from RUNNING to RUNNABLE
+-int sys_yield(void) 
+-{
+-  yield();
+-  return 0;
+-}
+-
+-// print all processes and their status
+-int sys_ps(void)
+-{
+-	return ps();
+-}
+-	
+-	
+diff -ruN xv6/Test_scheduler_one.c xv6-public/Test_scheduler_one.c
+--- xv6/Test_scheduler_one.c	2020-10-15 21:29:50.133275464 +0530
++++ xv6-public/Test_scheduler_one.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,148 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "processInfo.h"
+-
+-
+-void delay(int count)
+-{
+-    int* data = (int*) malloc(sizeof(int) * 10240);
+-    if(data <= 0)
+-        printf(1, "Memory not allocated due to some error\n");
+-
+-    for(int i = 0; i < count; i++){
+-        for(int k = 0; k < 570; k++)
+-            for(int j = 0; j < 10240; j++)
+-                data[j]++;
+-    }
+-}
+-void io_delay(int cnt)
+-{
+-	cnt += cnt+100;
+-	int x = 0, y = 100,z = 0,k = 0;
+-	
+-	int* data = (int*)malloc(sizeof(int) * 10240);
+-	for(int i = 0;i <= 10000*cnt*cnt; ++i){
+-		x += y*10;
+-		x /= 10;
+-		z++;
+-		int t = k%10240;
+-		data[t]++;
+-		k++;
+-		k %= 31000;
+-	}
+-	return;
+-}
+-int main(int argc, char *argv[])
+-{
+-    if(argc < 2){
+-        printf(2, "usage: %s n\n", argv[0]);
+-        exit();
+-    }
+-    
+-    printf(1, " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~First Testcase:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n\n");
+-    
+-    int N = atoi(argv[1]);
+-
+-    int pids[N];            // contains the order in which child completes 
+-    int rets[N];            // contains the order in which child terminates and returned to parent
+-    int burst_t[N];
+-    int context_switches[N];
+-    struct processInfo p_info;
+-    
+-    for(int i = 0; i < N; i++)
+-    {
+-        int burst_time = (20-i) ;
+-        
+-        burst_t[i] = burst_time;
+-        int id = fork();
+-        // fork() returns 0 when OS runs the child process 
+-        if(id == 0){
+-            set_burst_time(burst_time);         // setting the burst time of newly created child process
+-            delay(burst_time);                          // to waste CPU time so that child doesn't terminate 
+-            exit();                             // terminating child process
+-        }
+-        else if(id > 0){
+-            // Returned to parent. pids[i] contains process ID of the child process just completed and returned back to parent.
+-            pids[i] = id;
+-        }
+-        else {
+-            // creation of a child process was unsuccessful
+-            exit();
+-        }
+-    }
+-	
+-    for(int i = 0; i < N; i++){
+-        // wait() returns process ID of the terminated child process. 
+-        rets[i] = wait();
+-        getProcInfo(pids[i], &p_info);
+-        context_switches[i] = p_info.numberContextSwitches;
+-    }
+-
+-    printf(1, "\nOrder in which children completed\n");
+-    for(int i = 0; i < N; i++){
+-        printf(2, "pid = %d 	burst time = %d  ContextSwitches =  %d\n", pids[i], burst_t[i],context_switches[i]);
+-    }  
+-
+-    printf(1, "\nOrder in which children terminates and returns back to parent\n");
+-    for(int i = 0; i < N; i++){
+-        printf(2, "pid = %d 	burst time = %d 	\n", rets[i], burst_t[rets[i]-pids[0]]);
+-    }
+-	
+-	
+-	printf(1, "\n\n\n ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2nd Testcase: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n\n\n");
+-	
+-	
+-	for(int i = 0; i < N; i++)
+-    {
+-        int burst_time = (20-i);
+-        burst_t[i] = burst_time;
+-        int id = fork();
+-
+-        // fork() returns 0 when OS runs the child process 
+-        if(id == 0){
+-            if(i % 2 == 0){ //heavy cpu processes
+-		        set_burst_time(burst_time);         // setting the burst time of newly created child process
+-		        delay(burst_time);                  // to waste CPU time so that child doesn't terminate 
+-			}
+-			else {
+-				set_burst_time(burst_time);
+-				io_delay(burst_time);
+-				sleep(1);
+-				yield();
+-			}
+-			exit();     // terminating child process
+-        }
+-        else if(id > 0){
+-            // Returned to parent. pids[i] contains process ID of the child process just completed and returned back to parent.
+-            pids[i] = id;
+-        }
+-        else {
+-            // creation of a child process was unsuccessful
+-            exit();
+-        }
+-    }
+-
+-    for(int i = 0; i < N; i++){
+-        // wait() returns process ID of the terminated child process. 
+-        rets[i] = wait();
+-        getProcInfo(pids[i], &p_info);
+-        context_switches[i] = p_info.numberContextSwitches;
+-    }
+-	
+-	printf(1, "\nOrder in which children completed\n");
+-	for(int i = 0; i < N; i++){ 
+-		printf(2, "pid = %d  burst time = %d  ContextSwitches =  %d\n", pids[i], burst_t[i],context_switches[i]);
+-    }  
+-    for(int itr = 0;itr < 2; ++itr){
+-    	if(itr == 0) printf(1, "\n *************Heavy CPU Bound Processes************* \n\n");
+-    	else printf(1, "\n *************IO Bound Processes*************\n\n");
+-    	
+-    	printf(1, "\nOrder in which children terminates and returns back to parent\n");
+-    	for(int i = 0; i < N; i++){
+-    		if((rets[i]-pids[0])%2 == itr)		
+-        	   printf(2, "pid = %d 	   burst time = %d 	   \n", rets[i], burst_t[rets[i]-pids[0]]);
+-        }
+-    }
+-    exit();
+-}
+diff -ruN xv6/Test_scheduler_two.c xv6-public/Test_scheduler_two.c
+--- xv6/Test_scheduler_two.c	2020-10-15 21:29:50.133275464 +0530
++++ xv6-public/Test_scheduler_two.c	1970-01-01 05:30:00.000000000 +0530
+@@ -1,146 +0,0 @@
+-#include "types.h"
+-#include "stat.h"
+-#include "user.h"
+-#include "processInfo.h"
+-
+-void delay(int count)
+-{
+-    int* data = (int*) malloc(sizeof(int) * 10240);
+-    if(data <= 0)
+-        printf(1, "Memory not allocated due to some error\n");
+-
+-    for(int i = 0; i < count; i++){
+-        for(int k = 0; k < 570; k++)
+-            for(int j = 0; j < 10240; j++)
+-                data[j]++;
+-    }
+-}
+-void io_delay(int cnt)
+-{
+-	cnt += cnt+100;
+-	int x = 0, y = 100,z = 0,k = 0;
+-	
+-	int* data = (int*)malloc(sizeof(int) * 10240);
+-	for(int i=0;i<=10000*cnt*cnt;++i){
+-		x += y*10;
+-		x /= 10;
+-		z++;
+-		int t = k%10240;
+-		data[t]++;
+-		k++;
+-		k %= 31000;
+-	}
+-}
+-int main(int argc, char *argv[])
+-{
+-    if(argc < 2){
+-        printf(2, "usage: %s n\n", argv[0]);
+-        exit();
+-    }
+-    
+-    printf(1, " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~First Testcase:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n\n");
+-    
+-    int N = atoi(argv[1]);
+-    int pids[N];            // contains the order in which child completes 
+-    int rets[N];            // contains the order in which child terminates and returned to parent
+-    int burst_t[N];
+-    int context_switches[N];
+-    struct processInfo p_info;
+-    
+-    for(int i = 0; i < N; i++)
+-    {
+-        int burst_time = (23*(i+1)) % 20;
+-        
+-        burst_t[i] = burst_time;
+-        int id = fork();
+-
+-        // fork() returns 0 when OS runs the child process 
+-        if(id == 0){
+-            set_burst_time(burst_time);         // setting the burst time of newly created child process
+-            delay(burst_time);                  // to waste CPU time so that child doesn't terminate 
+-            exit();                             // terminating child process
+-        }
+-        else if(id > 0){
+-            // Returned to parent. pids[i] contains process ID of the child process just completed and returned back to parent.
+-            pids[i] = id;
+-        }
+-        else {
+-            // creation of a child process was unsuccessful
+-            exit();
+-        }
+-    }
+-	
+-    for(int i = 0; i < N; i++){
+-        // wait() returns process ID of the terminated child process. 
+-        rets[i] = wait();
+-        getProcInfo(pids[i], &p_info);
+-        context_switches[i] = p_info.numberContextSwitches;
+-    }
+-
+-    printf(1, "\nOrder in which children completed\n");
+-    for (int i = 0; i < N; i++){
+-        printf(2, "pid = %d 	burst time = %d  ContextSwitches =  %d\n", pids[i], burst_t[i],context_switches[i]);
+-    }  
+-
+-    printf(1, "\nOrder in which children terminates and returns back to parent\n");
+-    for(int i = 0; i < N; i++){
+-        printf(2, "pid = %d 	burst time = %d 	\n", rets[i], burst_t[rets[i]-pids[0]]);
+-    }
+-	
+-
+-	printf(1, "\n\n\n ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2nd Testcase: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n\n\n");
+-		
+-	for(int i = 0; i < N; i++)
+-    {
+-        int burst_time = (23*(i+1)) % 20;
+-        burst_t[i] = burst_time;
+-        int id = fork();
+-
+-        // fork() returns 0 when OS runs the child process 
+-        if(id == 0){
+-            if(i%2 == 0){                           //heavy cpu processes
+-		        set_burst_time(burst_time);         // setting the burst time of newly created child process
+-		        delay(burst_time);                  // to waste CPU time so that child doesn't terminate
+-			}
+-			else {
+-				set_burst_time(burst_time);
+-				io_delay(burst_time);
+-				sleep(1);
+-				yield();
+-			}
+-			exit();                                  // terminating child process
+-        }
+-        else if(id > 0){
+-            // Returned to parent. pids[i] contains process ID of the child process just completed and returned back to parent.
+-            pids[i] = id;
+-        }
+-        else {
+-            // creation of a child process was unsuccessful
+-            exit();
+-        }
+-    }
+-    
+-    for(int i = 0; i < N; i++){
+-        // wait() returns process ID of the terminated child process. 
+-        rets[i] = wait();
+-        getProcInfo(pids[i], &p_info);
+-        context_switches[i] = p_info.numberContextSwitches;
+-    }
+-	
+-	printf(1, "\nOrder in which children completed\n");
+-	for(int i = 0; i < N; i++){ 
+-		   printf(2, "pid = %d 	burst time = %d  ContextSwitches =  %d\n", pids[i], burst_t[i],context_switches[i]);
+-    }  
+-
+-    for(int itr = 0;itr < 2; ++itr){
+-    	if(itr == 0) printf(1, "\n *************Heavy CPU Bound Processes************* \n\n");
+-    	else printf(1, "\n *************IO Bound Processes*************\n\n");
+-    	
+-    	printf(1, "\nOrder in which children terminates and returns back to parent\n");
+-    	for(int i = 0; i < N; i++){
+-    		if((rets[i]-pids[0])%2 == itr)		
+-        	   printf(2, "pid = %d 	   burst time = %d 	   \n", rets[i], burst_t[rets[i]-pids[0]]);
+-        }
+-    }
+-    exit();
+-}
+diff -ruN xv6/trap.c xv6-public/trap.c
+--- xv6/trap.c	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/trap.c	2020-10-15 21:29:50.129274954 +0530
+@@ -102,22 +102,9 @@
+ 
+   // Force process to give up CPU on clock tick.
+   // If interrupts were on while locks held, would need to check nlock.
+-  
+-  #ifdef SJF
+-  //no context switch
+-  #else
+-  #ifdef DEFAULT
+   if(myproc() && myproc()->state == RUNNING &&
+      tf->trapno == T_IRQ0+IRQ_TIMER)
+     yield();
+-  #else
+-  #ifdef HBSJF 
+-  if(myproc() && myproc()->state == RUNNING &&
+-     tf->trapno == T_IRQ0+IRQ_TIMER && time_checker())
+-    yield();
+-  #endif
+-  #endif
+-  #endif  
+ 
+   // Check if the process has been killed since we yielded
+   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
+diff -ruN xv6/user.h xv6-public/user.h
+--- xv6/user.h	2020-10-15 21:29:50.141276485 +0530
++++ xv6-public/user.h	2020-10-15 21:29:50.133275464 +0530
+@@ -1,6 +1,5 @@
+ struct stat;
+ struct rtcdate;
+-struct processInfo;
+ 
+ // system calls
+ int fork(void);
+@@ -25,15 +24,6 @@
+ int sleep(int);
+ int uptime(void);
+ 
+-// declaring the functions which the user will call from the user program defined for testing system calls.
+-int getNumProc(void);
+-int getMaxPid(void);
+-int getProcInfo(int pid, struct processInfo*);
+-int set_burst_time(int);
+-int get_burst_time(void);
+-int yield(void);
+-int ps(void);
+-
+ // ulib.c
+ int stat(const char*, struct stat*);
+ char* strcpy(char*, const char*);
+diff -ruN xv6/usys.S xv6-public/usys.S
+--- xv6/usys.S	2020-10-15 21:29:50.145276995 +0530
++++ xv6-public/usys.S	2020-10-15 21:29:50.133275464 +0530
+@@ -29,16 +29,3 @@
+ SYSCALL(sbrk)
+ SYSCALL(sleep)
+ SYSCALL(uptime)
+-
+-# For creating an interface for your user program to access system call from user.h, we added the below lines in usys.S.
+-SYSCALL(getNumProc)
+-SYSCALL(getMaxPid)
+-SYSCALL(getProcInfo)
+-SYSCALL(set_burst_time)
+-SYSCALL(get_burst_time)
+-SYSCALL(yield)
+-SYSCALL(ps)
+-
+-
+-
+-
